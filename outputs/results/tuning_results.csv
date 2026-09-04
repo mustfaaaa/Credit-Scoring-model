@@ -1,0 +1,5 @@
+Model,Search,Combinations_tested,Best_CV_ROC_AUC,Best_params,Seconds
+HistGradientBoosting,RandomizedSearchCV (15/216 combos),15,0.7899312831175109,"{""model__min_samples_leaf"": 50, ""model__max_leaf_nodes"": 15, ""model__max_iter"": 150, ""model__learning_rate"": 0.03, ""model__l2_regularization"": 0.5}",368.2
+Random Forest,RandomizedSearchCV (12/144 combos),12,0.7888729692887014,"{""model__n_estimators"": 400, ""model__min_samples_leaf"": 20, ""model__max_features"": ""sqrt"", ""model__max_depth"": 16}",671.3
+Decision Tree,GridSearchCV (48 combos),48,0.7767274185699751,"{""model__criterion"": ""gini"", ""model__max_depth"": 6, ""model__min_samples_leaf"": 200}",109.0
+Logistic Regression,GridSearchCV (12 combos),12,0.7666259824078234,"{""model__C"": 1.0, ""model__solver"": ""lbfgs""}",18.9

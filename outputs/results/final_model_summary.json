@@ -1,0 +1,158 @@
+{
+  "threshold": 0.4049999999999999,
+  "model_name": "HistGradientBoosting",
+  "best_params": {
+    "model__min_samples_leaf": 50,
+    "model__max_leaf_nodes": 15,
+    "model__max_iter": 150,
+    "model__learning_rate": 0.03,
+    "model__l2_regularization": 0.5
+  },
+  "numeric_features": [
+    "LIMIT_BAL",
+    "AGE",
+    "PAY_0",
+    "PAY_2",
+    "PAY_3",
+    "PAY_4",
+    "PAY_5",
+    "PAY_6",
+    "BILL_AMT1",
+    "BILL_AMT2",
+    "BILL_AMT3",
+    "BILL_AMT4",
+    "BILL_AMT5",
+    "BILL_AMT6",
+    "PAY_AMT1",
+    "PAY_AMT2",
+    "PAY_AMT3",
+    "PAY_AMT4",
+    "PAY_AMT5",
+    "PAY_AMT6",
+    "util_1",
+    "util_2",
+    "util_3",
+    "util_4",
+    "util_5",
+    "util_6",
+    "avg_utilization",
+    "max_utilization",
+    "utilization_trend",
+    "over_limit_months",
+    "pay_ratio_1",
+    "pay_ratio_2",
+    "pay_ratio_3",
+    "pay_ratio_4",
+    "pay_ratio_5",
+    "avg_pay_ratio",
+    "min_pay_ratio",
+    "zero_payment_months",
+    "n_delinquent_months",
+    "max_delinquency",
+    "recent_delinquency",
+    "delinquency_trend",
+    "months_paid_full",
+    "months_no_consumption",
+    "avg_bill_amt",
+    "avg_pay_amt",
+    "bill_volatility",
+    "payment_to_limit",
+    "remaining_credit"
+  ],
+  "categorical_features": [
+    "SEX",
+    "EDUCATION",
+    "MARRIAGE"
+  ],
+  "raw_input_columns": [
+    "LIMIT_BAL",
+    "SEX",
+    "EDUCATION",
+    "MARRIAGE",
+    "AGE",
+    "PAY_0",
+    "PAY_2",
+    "PAY_3",
+    "PAY_4",
+    "PAY_5",
+    "PAY_6",
+    "BILL_AMT1",
+    "BILL_AMT2",
+    "BILL_AMT3",
+    "BILL_AMT4",
+    "BILL_AMT5",
+    "BILL_AMT6",
+    "PAY_AMT1",
+    "PAY_AMT2",
+    "PAY_AMT3",
+    "PAY_AMT4",
+    "PAY_AMT5",
+    "PAY_AMT6"
+  ],
+  "test_metrics_at_threshold": {
+    "Accuracy": 0.6737860837643918,
+    "Precision": 0.37964026023727515,
+    "Recall": 0.7481146304675717,
+    "F1": 0.5036811373445037,
+    "ROC-AUC": 0.7818204485070717,
+    "PR-AUC": 0.5630780808085659
+  },
+  "test_metrics_at_0.5": {
+    "Accuracy": 0.7545469714667111,
+    "Precision": 0.45996686913307566,
+    "Recall": 0.6282051282051282,
+    "F1": 0.5310806503028371,
+    "ROC-AUC": 0.7818204485070717,
+    "PR-AUC": 0.5630780808085659
+  },
+  "cv_roc_auc": 0.7899312831175109,
+  "cost_fn": 5.0,
+  "cost_fp": 1.0,
+  "random_state": 42,
+  "sklearn_version": "1.9.0",
+  "trained_at": "2026-09-05T01:03:35",
+  "n_train": 23972,
+  "n_test": 5993,
+  "top_features": [
+    {
+      "feature": "n_delinquent_months",
+      "importance": 0.030503412652166696
+    },
+    {
+      "feature": "PAY_0",
+      "importance": 0.02654007260631992
+    },
+    {
+      "feature": "remaining_credit",
+      "importance": 0.01182985959955669
+    },
+    {
+      "feature": "max_delinquency",
+      "importance": 0.005030555348179688
+    },
+    {
+      "feature": "BILL_AMT1",
+      "importance": 0.004166121295149816
+    },
+    {
+      "feature": "bill_volatility",
+      "importance": 0.0037429453164463224
+    },
+    {
+      "feature": "min_pay_ratio",
+      "importance": 0.0027678048853006397
+    },
+    {
+      "feature": "EDUCATION",
+      "importance": 0.0019876246719286116
+    },
+    {
+      "feature": "PAY_AMT2",
+      "importance": 0.0010485999545604362
+    },
+    {
+      "feature": "pay_ratio_2",
+      "importance": 0.0010431058415024896
+    }
+  ]
+}

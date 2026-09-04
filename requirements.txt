@@ -1,0 +1,12 @@
+# Core dependencies -- versions verified working together on Python 3.14.
+# Install with:  pip install -r requirements.txt
+numpy>=2.0,<3.0
+pandas>=2.2,<4.0
+scikit-learn>=1.5,<2.0
+matplotlib>=3.8
+seaborn>=0.13
+joblib>=1.3
+xlrd>=2.0            # required to read the UCI .xls source workbook
+
+# Optional -- only needed to open/run notebooks/credit_scoring_analysis.ipynb
+jupyter>=1.0

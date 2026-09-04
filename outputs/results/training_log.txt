@@ -1,0 +1,158 @@
+INFO | Raw file already cached at C:\practice\data\raw\default_of_credit_card_clients.xls
+INFO | Dropped 35 duplicate rows
+
+==============================================================================
+STEP 1-3 | LOAD AND CLEAN
+==============================================================================
+Clean dataset            : 29,965 rows x 24 columns
+Missing values           : 0
+Duplicate rows remaining : 0
+Target distribution      : repaid=23,335  defaulted=6,630  (default rate 22.13%)
+Imbalance ratio          : 3.52 : 1
+
+==============================================================================
+STEP 4 | EXPLORATORY DATA ANALYSIS
+==============================================================================
+  figure -> C:\practice\outputs\figures\eda_target_distribution.png
+  figure -> C:\practice\outputs\figures\eda_payment_history.png
+  figure -> C:\practice\outputs\figures\eda_financial_profile.png
+  figure -> C:\practice\outputs\figures\eda_categorical_rates.png
+  figure -> C:\practice\outputs\figures\eda_correlation_heatmap.png
+
+==============================================================================
+STEP 5 | FEATURE ENGINEERING
+==============================================================================
+Raw predictors      : 23
+After engineering   : 49 numeric + 3 categorical = 52
+Processed dataset -> C:\practice\data\processed\credit_clean_engineered.csv
+
+==============================================================================
+STEP 6 | TRAIN / TEST SPLIT
+==============================================================================
+Train : 23,972 rows  (default rate 0.2213)
+Test  : 5,993 rows  (default rate 0.2213)
+Validation strategy : 5-fold stratified CV *inside* the training set
+The test set is now sealed until STEP 14.
+
+==============================================================================
+STEP 8-12 | CROSS-VALIDATED COMPARISON (training set only)
+==============================================================================
+  Baseline (Majority)      ROC-AUC 0.5000 (+/-0.0000)  F1 0.0000  Recall 0.0000  [1s]
+  Logistic Regression      ROC-AUC 0.7666 (+/-0.0100)  F1 0.5271  Recall 0.6139  [1s]
+  Decision Tree            ROC-AUC 0.7766 (+/-0.0052)  F1 0.5326  Recall 0.6354  [2s]
+  Random Forest            ROC-AUC 0.7840 (+/-0.0097)  F1 0.5431  Recall 0.5756  [27s]
+  HistGradientBoosting     ROC-AUC 0.7869 (+/-0.0083)  F1 0.5403  Recall 0.6348  [23s]
+
+==============================================================================
+PHASE 11 | CLASS-IMBALANCE MITIGATION STUDY
+==============================================================================
+Comparing class_weight='balanced' against no re-weighting, 5-fold CV on the training set.
+
+  Logistic Regression      none      Recall 0.3039  Precision 0.6303  F1 0.4099  ROC-AUC 0.7643
+  Random Forest            none      Recall 0.3729  Precision 0.6604  F1 0.4766  ROC-AUC 0.7832
+  HistGradientBoosting     none      Recall 0.3597  Precision 0.6723  F1 0.4685  ROC-AUC 0.7861
+  Logistic Regression      balanced  Recall 0.6139  Precision 0.4618  F1 0.5271  ROC-AUC 0.7666
+  Random Forest            balanced  Recall 0.5756  Precision 0.5142  F1 0.5431  ROC-AUC 0.7840
+  HistGradientBoosting     balanced  Recall 0.6348  Precision 0.4704  F1 0.5403  ROC-AUC 0.7869
+
+==============================================================================
+STEP 13 | HYPER-PARAMETER TUNING (CV on the training set only)
+==============================================================================
+  Logistic Regression
+    GridSearchCV (12 combos) -> best CV ROC-AUC 0.7666 [19s]
+    best params: {'model__C': 1.0, 'model__solver': 'lbfgs'}
+  Decision Tree
+    GridSearchCV (48 combos) -> best CV ROC-AUC 0.7767 [109s]
+    best params: {'model__criterion': 'gini', 'model__max_depth': 6, 'model__min_samples_leaf': 200}
+  Random Forest
+    RandomizedSearchCV (12/144 combos) -> best CV ROC-AUC 0.7889 [671s]
+    best params: {'model__n_estimators': 400, 'model__min_samples_leaf': 20, 'model__max_features': 'sqrt', 'model__max_depth': 16}
+  HistGradientBoosting
+    RandomizedSearchCV (15/216 combos) -> best CV ROC-AUC 0.7899 [368s]
+    best params: {'model__min_samples_leaf': 50, 'model__max_leaf_nodes': 15, 'model__max_iter': 150, 'model__learning_rate': 0.03, 'model__l2_regularization': 0.5}
+
+==============================================================================
+STEP 18 | FINAL MODEL SELECTION (decided on CV, before touching test)
+==============================================================================
+Winner by CV ROC-AUC : HistGradientBoosting (0.7899)
+
+==============================================================================
+DECISION THRESHOLD | chosen on out-of-fold TRAINING predictions
+==============================================================================
+Cost model            : FN costs 5x, FP costs 1x
+Cost at threshold 0.50: 13,381
+Optimal threshold     : 0.405  (cost 12,889, 3.7% lower)
+
+==============================================================================
+STEP 14 | FINAL EVALUATION ON THE HELD-OUT TEST SET
+==============================================================================
+  Baseline (Majority)      Acc 0.7787  Prec 0.0000  Rec 0.0000  F1 0.0000  ROC-AUC nan
+  Logistic Regression      Acc 0.7542  Prec 0.4573  Rec 0.5943  F1 0.5169  ROC-AUC 0.7613
+  Decision Tree            Acc 0.7587  Prec 0.4653  Rec 0.6063  F1 0.5265  ROC-AUC 0.7697
+  Random Forest            Acc 0.7651  Prec 0.4759  Rec 0.6094  F1 0.5344  ROC-AUC 0.7782
+  HistGradientBoosting     Acc 0.7545  Prec 0.4600  Rec 0.6282  F1 0.5311  ROC-AUC 0.7818
+
+==============================================================================
+STEP 15 | MODEL COMPARISON TABLE (test set, threshold = 0.50)
+==============================================================================
+                      Accuracy  Precision  Recall      F1  ROC-AUC  PR-AUC
+Baseline (Majority)     0.7787     0.0000  0.0000  0.0000      NaN     NaN
+Logistic Regression     0.7542     0.4573  0.5943  0.5169   0.7613  0.5150
+Decision Tree           0.7587     0.4653  0.6063  0.5265   0.7697  0.5348
+Random Forest           0.7651     0.4759  0.6094  0.5344   0.7782  0.5592
+HistGradientBoosting    0.7545     0.4600  0.6282  0.5311   0.7818  0.5631
+
+HistGradientBoosting at the cost-optimal threshold 0.405:
+  Accuracy   0.6738
+  Precision  0.3796
+  Recall     0.7481
+  F1         0.5037
+  ROC-AUC    0.7818
+  PR-AUC     0.5631
+
+==============================================================================
+STEP 16 | FEATURE IMPORTANCE / INTERPRETABILITY
+==============================================================================
+  computing permutation importance (this takes a minute) ...
+
+  Top 12 features by permutation importance:
+    n_delinquent_months        +0.03050 (+/-0.00224)
+    PAY_0                      +0.02654 (+/-0.00343)
+    remaining_credit           +0.01183 (+/-0.00188)
+    max_delinquency            +0.00503 (+/-0.00097)
+    BILL_AMT1                  +0.00417 (+/-0.00063)
+    bill_volatility            +0.00374 (+/-0.00069)
+    min_pay_ratio              +0.00277 (+/-0.00064)
+    EDUCATION                  +0.00199 (+/-0.00059)
+    PAY_AMT2                   +0.00105 (+/-0.00079)
+    pay_ratio_2                +0.00104 (+/-0.00028)
+    max_utilization            +0.00099 (+/-0.00039)
+    utilization_trend          +0.00090 (+/-0.00040)
+
+==============================================================================
+STEP 17 | ERROR ANALYSIS
+==============================================================================
+                                  group  count  share  mean_predicted_prob  LIMIT_BAL    AGE  PAY_0  n_delinquent_months  avg_utilization  avg_pay_ratio  max_delinquency
+     True Negative (correctly approved)   3046  0.508                0.254 205869.993 35.457 -0.429                0.060            0.324          0.442           -0.214
+False Positive (good customer rejected)   1621  0.270                0.584 126255.398 35.333  0.143                1.349            0.383          0.383            0.977
+    False Negative (defaulter approved)    334  0.056                0.294 179790.419 35.632 -0.422                0.081            0.380          0.438           -0.177
+       True Positive (defaulter caught)    992  0.166                0.721 116683.468 36.409  1.016                2.656            0.478          0.207            1.754
+
+  False negatives are 334 customers who defaulted but were approved.
+  Their mean predicted probability is 0.294 -- close to the threshold, i.e. the model was uncertain rather than confidently wrong.
+  Mean delinquent months: FN=0.08 vs FP=1.35
+
+==============================================================================
+FAIRNESS SENSITIVITY | does dropping SEX cost predictive power?
+==============================================================================
+  Test ROC-AUC without SEX : 0.7816
+
+==============================================================================
+STEP 19 | SAVING THE FINAL MODEL
+==============================================================================
+Saved bundle (pipeline + threshold + metadata) -> C:\practice\models\final_model.pkl
+
+==============================================================================
+PIPELINE COMPLETE in 1356s
+==============================================================================
+EXIT CODE: 0
