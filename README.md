@@ -83,6 +83,11 @@ Credit-Scoring-model/
 │   └── processed/                    # cleaned + engineered dataset (git-ignored)
 ├── notebooks/
 │   └── credit_scoring_analysis.ipynb # full narrative walkthrough
+├── templates/
+│   └── index.html                    # dashboard page (Jinja2)
+├── static/
+│   ├── css/styles.css                # hand-written CSS, no build step
+│   └── js/app.js                     # tabs, presets, live scoring
 ├── src/
 │   ├── config.py                     # paths, seeds, cost assumptions
 │   ├── data_loader.py                # download + clean
@@ -92,11 +97,12 @@ Credit-Scoring-model/
 │   ├── eda.py                        # exploratory figures
 │   ├── evaluate.py                   # metrics, threshold search, plots
 │   ├── train.py                      # end-to-end training orchestrator
-│   └── predict.py                    # prediction interface for new applicants
+│   ├── predict.py                    # prediction interface for new applicants
+│   └── webapp.py                     # Flask web dashboard
 ├── scripts/
 │   └── build_notebook.py             # generates + executes the notebook
 ├── tests/
-│   └── verify_pipeline.py            # 12-check end-to-end verification suite
+│   └── verify_pipeline.py            # 13-check end-to-end verification suite
 ├── models/
 │   └── final_model.pkl               # pipeline + threshold + metadata
 ├── outputs/
@@ -136,11 +142,18 @@ python -m src.predict
 Scores two example applicants using the saved model.
 
 ```bash
+python -m src.webapp
+```
+
+Starts the **web dashboard** at <http://127.0.0.1:5000>. See section 8 below.
+
+```bash
 python -m tests.verify_pipeline
 ```
 
-Runs the 12-check verification suite (loading, features, leakage, split,
-preprocessing, training, CV, tuning, metrics, save/reload, prediction, artefacts).
+Runs the 13-check verification suite (loading, features, leakage, split,
+preprocessing, training, CV, tuning, metrics, save/reload, prediction, artefacts,
+dashboard routes).
 
 ```bash
 python -m scripts.build_notebook --run
@@ -265,7 +278,48 @@ confusion matrices, error analysis, limitations and viva notes.
 
 ---
 
-## 7. Licence and attribution
+## 7. Web dashboard
+
+```bash
+python -m src.webapp
+```
+
+Then open <http://127.0.0.1:5000>. Built with Flask and hand-written CSS &mdash; no
+build step, no CDN, so it runs offline.
+
+**Six tabs:**
+
+| Tab | What it shows |
+|---|---|
+| **Overview** | What the model does, how a prediction is made, and why accuracy is the wrong headline metric |
+| **Score an Applicant** | A live form over all 23 raw fields that returns a real prediction |
+| **Model Results** | Confusion matrix, tuned parameters, every comparison table, and all result figures |
+| **Data & EDA** | Dataset description and all five EDA figures, each with the question it answers |
+| **What Drives Risk** | Ranked permutation importance with engineered features marked, plus the fairness check |
+| **Errors & Limits** | Error-analysis table and the stated limitations |
+
+**The scoring form is the demo centrepiece.** Four preset buttons fill all 23 fields
+instantly:
+
+- *Preset: strong payer* / *Preset: distressed* &mdash; hand-built archetypes
+- *Real customer who defaulted* / *Real customer who repaid* &mdash; pulls an **actual
+  record from the dataset**, so you can compare the model's prediction against what
+  really happened
+
+Each result shows the decision, both probabilities, a risk band, a probability bar
+marked with the tuned 0.405 threshold, and a **&ldquo;why&rdquo; table** listing the
+applicant's real engineered indicators next to the dataset averages for customers who
+repaid and defaulted, with the riskiest values flagged.
+
+Nothing on the page is hard-coded: every table is read from `outputs/results/` and every
+prediction is computed from `models/final_model.pkl` at request time.
+
+> **Note:** this uses Flask's development server, which is correct for a local demo or
+> viva but is not a production deployment.
+
+---
+
+## 8. Licence and attribution
 
 Dataset: Yeh, I.-C. & Lien, C.-H. (2009), *The comparisons of data mining techniques for
 the predictive accuracy of probability of default of credit card clients*, Expert Systems

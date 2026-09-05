@@ -7,6 +7,7 @@ matplotlib>=3.8
 seaborn>=0.13
 joblib>=1.3
 xlrd>=2.0            # required to read the UCI .xls source workbook
+flask>=3.0           # web dashboard (python -m src.webapp)
 
 # Optional -- only needed to open/run notebooks/credit_scoring_analysis.ipynb
 jupyter>=1.0

@@ -258,6 +258,47 @@ def _test_artifacts():
     return f"{len(figures)} figures, {len(results)} result tables"
 
 
+# ------------------------------------------------- 13. web dashboard -------
+@check("13. Web dashboard routes")
+def _test_webapp():
+    """Exercise the Flask app through its test client (no server needed)."""
+    from src.webapp import app
+    from src.predict import example_applicants
+
+    client = app.test_client()
+
+    page = client.get("/")
+    assert page.status_code == 200, f"GET / returned {page.status_code}"
+    html = page.get_data(as_text=True)
+    for token in ("Score an Applicant", "Confusion matrix", "n_delinquent_months"):
+        assert token in html, f"dashboard is missing {token!r}"
+
+    png = client.get("/figures/roc_curves.png")
+    assert png.status_code == 200, "figure route failed"
+    # PNG magic number: 0x89 followed by "PNG".
+    assert png.data[0] == 0x89 and png.data[1:4] == b"PNG", "not a PNG"
+    assert client.get("/figures/../config.py").status_code == 404, (
+        "path traversal was not blocked")
+
+    sample = client.get("/api/sample?kind=risky").get_json()
+    assert sample["actual_outcome"] == "defaulted", "risky sample is not a defaulter"
+
+    good, bad = example_applicants().values()
+    p_good = client.post("/api/score", json=good).get_json()
+    p_bad = client.post("/api/score", json=bad).get_json()
+    assert p_good["ok"] and p_bad["ok"], "scoring endpoint failed"
+    assert p_bad["probability_of_default"] > p_good["probability_of_default"],         "dashboard ranks the distressed borrower no riskier than the strong payer"
+    assert p_bad["indicators"], "no risk indicators returned"
+
+    invalid = client.post("/api/score", json={})
+    assert invalid.status_code == 400, "missing fields were not rejected"
+    assert len(invalid.get_json()["errors"]) == 23, "expected one error per field"
+
+    return (f"page + figures + samples OK; scored "
+            f"{p_good['percent_default']}% vs {p_bad['percent_default']}%; "
+            "validation and traversal guard OK")
+
+
 # --------------------------------------------------------------- report ----
 print("\n" + "=" * 70)
 print(f"RESULT: {len(PASSED)} passed, {len(FAILED)} failed")

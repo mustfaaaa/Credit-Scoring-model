@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Credit Scoring Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="site-header">
+  <div class="shell">
+    <h1>Credit Scoring Model &mdash; Predicting Creditworthiness</h1>
+    <p class="tagline">
+      A machine-learning model that estimates the probability a credit-card customer
+      will <strong>default on their next payment</strong>, using six months of real
+      billing, payment and delinquency history.
+    </p>
+    <div class="badge-row">
+      <span class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+        {{ model_name }}
+      </span>
+      <span class="badge">Test ROC-AUC {{ '%.4f'|format(metrics.get('ROC-AUC', 0)) }}</span>
+      <span class="badge">Recall {{ '%.4f'|format(metrics.get('Recall', 0)) }}</span>
+      <span class="badge">Threshold {{ '%.3f'|format(threshold) }}</span>
+      <span class="badge">{{ n_features }} features</span>
+      <span class="badge">scikit-learn {{ sklearn_version }}</span>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Dashboard sections">
+  <button class="tab" role="tab" id="tab-overview" aria-controls="panel-overview" aria-selected="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+    Overview
+  </button>
+  <button class="tab" role="tab" id="tab-score" aria-controls="panel-score" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    Score an Applicant
+  </button>
+  <button class="tab" role="tab" id="tab-results" aria-controls="panel-results" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+    Model Results
+  </button>
+  <button class="tab" role="tab" id="tab-data" aria-controls="panel-data" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+    Data &amp; EDA
+  </button>
+  <button class="tab" role="tab" id="tab-features" aria-controls="panel-features" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+    What Drives Risk
+  </button>
+  <button class="tab" role="tab" id="tab-errors" aria-controls="panel-errors" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Errors &amp; Limits
+  </button>
+</nav>
+
+<main class="shell" id="main">
+
+<!-- ===================================================== OVERVIEW ======= -->
+<section class="panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
+
+  <div class="grid grid-kpi" style="margin-bottom:var(--space-4)">
+    <div class="kpi"><span class="label">Dataset</span><span class="value">29,965</span><span class="note">customers, 52 features</span></div>
+    <div class="kpi accent"><span class="label">Default rate</span><span class="value">22.13%</span><span class="note">imbalanced 3.52 : 1</span></div>
+    <div class="kpi"><span class="label">Test ROC-AUC</span><span class="value">{{ '%.4f'|format(metrics.get('ROC-AUC', 0)) }}</span><span class="note">CV {{ '%.4f'|format(cv_roc_auc or 0) }}</span></div>
+    <div class="kpi good"><span class="label">Recall</span><span class="value">{{ '%.1f'|format(metrics.get('Recall', 0) * 100) }}%</span><span class="note">of defaulters caught</span></div>
+    <div class="kpi bad"><span class="label">Precision</span><span class="value">{{ '%.1f'|format(metrics.get('Precision', 0) * 100) }}%</span><span class="note">of flagged really default</span></div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h2>What this model does</h2>
+      <p>
+        It answers one question: <strong>&ldquo;Will this customer pay their next
+        credit-card bill?&rdquo;</strong> It reads six months of a customer&rsquo;s
+        financial behaviour and returns a <strong>probability of default</strong>
+        between 0 and 1.
+      </p>
+      <p>
+        Because the outcome is a yes/no event, this is a <strong>binary
+        classification</strong> problem. The probability is what actually matters to a
+        lender: it lets them move the approval cut-off up or down depending on how much
+        risk they are willing to carry.
+      </p>
+      <p class="hint">
+        Target: <code>default = 1</code> means the customer failed to pay their
+        October 2005 bill. All predictors describe April&ndash;September 2005, so no
+        feature can see the future.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>How a prediction is made</h2>
+      <div class="flow">
+        <div class="flow-step"><span class="n">01</span><span class="t">Raw application</span><span class="d">23 fields: limit, demographics, 6 months of repayment status, bills and payments</span></div>
+        <div class="flow-step"><span class="n">02</span><span class="t">Feature engineering</span><span class="d">29 credit-risk features derived row-wise: utilisation, repayment effort, delinquency counts</span></div>
+        <div class="flow-step"><span class="n">03</span><span class="t">Preprocessing</span><span class="d">Median imputation and one-hot encoding, fitted on training data only</span></div>
+        <div class="flow-step"><span class="n">04</span><span class="t">{{ model_name }}</span><span class="d">Outputs a probability of default</span></div>
+        <div class="flow-step"><span class="n">05</span><span class="t">Decision</span><span class="d">Compared against the tuned {{ '%.3f'|format(threshold) }} threshold &rarr; approve or decline</span></div>
+      </div>
+      <p class="hint" style="margin-top:var(--space-3)">
+        Steps 02&ndash;04 are stored together in <code>models/final_model.pkl</code>, so
+        raw applicant data can be scored directly.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Why accuracy is the wrong headline metric</h2>
+    <div class="note">
+      <strong>The accuracy trap.</strong> A model that simply predicts &ldquo;nobody
+      defaults&rdquo; scores <strong>77.87% accuracy</strong> &mdash; higher than three of
+      the four real models &mdash; while catching <strong>zero</strong> defaulters. That
+      is why this project is judged on ROC-AUC, recall and PR-AUC instead.
+    </div>
+    <div class="grid grid-2">
+      <div>
+        <h3 style="font-size:0.95rem;margin-bottom:var(--space-2)">The two mistakes cost different amounts</h3>
+        <ul class="tidy">
+          <li><strong>False negative</strong> &mdash; predicted repay, actually defaulted. A bad loan was <em>approved</em>; the bank loses the principal. <strong>Expensive.</strong></li>
+          <li><strong>False positive</strong> &mdash; predicted default, actually repaid. A good customer was <em>declined</em>; the bank loses the profit margin. Cheaper.</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="font-size:0.95rem;margin-bottom:var(--space-2)">So the threshold was tuned for recall</h3>
+        <p class="hint">
+          Total cost was defined as
+          <code>{{ cost_fn|int }} &times; FN + {{ cost_fp|int }} &times; FP</code> and
+          minimised on <strong>out-of-fold training predictions</strong> &mdash; never on
+          the test set. That moved the cut-off from 0.500 to
+          <strong>{{ '%.3f'|format(threshold) }}</strong>, lifting recall from
+          {{ '%.4f'|format(metrics_at_half.get('Recall', 0)) }} to
+          <strong>{{ '%.4f'|format(metrics.get('Recall', 0)) }}</strong>.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================== SCORE APPLICANT === -->
+<section class="panel" id="panel-score" role="tabpanel" aria-labelledby="tab-score" tabindex="0" hidden>
+  <div class="grid grid-2">
+
+    <div class="card">
+      <h2>Applicant details</h2>
+      <p class="hint">
+        23 raw fields, exactly what the model was trained on. Use a preset to fill them
+        instantly &mdash; &ldquo;real customer&rdquo; pulls an actual record from the
+        dataset so you can compare the prediction with what really happened.
+      </p>
+
+      <div class="btn-row">
+        <button type="button" class="btn btn-secondary" data-preset="strong">Preset: strong payer</button>
+        <button type="button" class="btn btn-secondary" data-preset="distressed">Preset: distressed</button>
+        <button type="button" class="btn btn-secondary" data-sample="risky">Real customer who defaulted</button>
+        <button type="button" class="btn btn-secondary" data-sample="safe">Real customer who repaid</button>
+      </div>
+
+      <div id="error-summary" class="error-summary" role="alert" tabindex="-1" hidden>
+        <h3>There is a problem with this application</h3>
+        <ul id="error-list"></ul>
+      </div>
+
+      <form id="score-form" novalidate>
+        <fieldset>
+          <legend>Profile</legend>
+          <div class="grid grid-3">
+            <div class="field">
+              <label for="LIMIT_BAL">Credit limit (NT$)</label>
+              <input type="number" id="LIMIT_BAL" name="LIMIT_BAL" value="200000" min="1" step="1000"
+                     aria-describedby="LIMIT_BAL-error">
+              <span class="field-error" id="LIMIT_BAL-error"></span>
+            </div>
+            <div class="field">
+              <label for="AGE">Age</label>
+              <input type="number" id="AGE" name="AGE" value="35" min="18" max="120"
+                     aria-describedby="AGE-error">
+              <span class="field-error" id="AGE-error"></span>
+            </div>
+            <div class="field">
+              <label for="SEX">Sex</label>
+              <select id="SEX" name="SEX">
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+              </select>
+              <span class="help">Kept for parity with the dataset; contributes ~0 to the score.</span>
+            </div>
+            <div class="field">
+              <label for="EDUCATION">Education</label>
+              <select id="EDUCATION" name="EDUCATION">
+                <option value="graduate_school">Graduate school</option>
+                <option value="university" selected>University</option>
+                <option value="high_school">High school</option>
+                <option value="others">Others</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="MARRIAGE">Marital status</label>
+              <select id="MARRIAGE" name="MARRIAGE">
+                <option value="married">Married</option>
+                <option value="single" selected>Single</option>
+                <option value="others">Others</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Repayment status &mdash; how late each month was</legend>
+          <p class="hint" style="margin-bottom:var(--space-3)">
+            The strongest signal in the whole model. <code>-1</code> = paid in full,
+            <code>0</code> = paying the minimum, <code>1+</code> = months overdue.
+          </p>
+          <div class="grid grid-3">
+            {% for col in pay_cols %}
+            <div class="field">
+              <label for="{{ col }}">{{ months[loop.index0] }} <span class="mono">({{ col }})</span></label>
+              <select id="{{ col }}" name="{{ col }}">
+                {% for value, label in pay_choices %}
+                <option value="{{ value }}" {% if value == 0 %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Monthly bill amounts (NT$)</legend>
+          <div class="grid grid-3">
+            {% for col in bill_cols %}
+            <div class="field">
+              <label for="{{ col }}">{{ months[loop.index0] }} <span class="mono">({{ col }})</span></label>
+              <input type="number" id="{{ col }}" name="{{ col }}" value="50000" step="100"
+                     aria-describedby="{{ col }}-error">
+              <span class="field-error" id="{{ col }}-error"></span>
+            </div>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Monthly payments made (NT$)</legend>
+          <div class="grid grid-3">
+            {% for col in pay_amt_cols %}
+            <div class="field">
+              <label for="{{ col }}">{{ months[loop.index0] }} <span class="mono">({{ col }})</span></label>
+              <input type="number" id="{{ col }}" name="{{ col }}" value="5000" min="0" step="100"
+                     aria-describedby="{{ col }}-error">
+              <span class="field-error" id="{{ col }}-error"></span>
+            </div>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <button type="submit" class="btn btn-primary" id="score-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>
+          <span class="btn-text">Score this applicant</span>
+        </button>
+      </form>
+    </div>
+
+    <div class="card" style="position:sticky;top:64px;align-self:start">
+      <h2>Credit decision</h2>
+      <div id="result-empty" class="result-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:44px;height:44px;opacity:.45" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M9 15h6"/></svg>
+        <p style="margin-top:var(--space-3)">Fill in the application and press
+          <strong>Score this applicant</strong>.<br>Every number comes from the trained
+          model at request time.</p>
+      </div>
+      <div id="result" hidden aria-live="polite"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================================================== MODEL RESULTS === -->
+<section class="panel" id="panel-results" role="tabpanel" aria-labelledby="tab-results" tabindex="0" hidden>
+
+  {% if confusion %}
+  <div class="grid grid-2">
+    <div class="card">
+      <h2>Confusion matrix &mdash; test set at threshold {{ '%.3f'|format(threshold) }}</h2>
+      <div class="cm">
+        <div></div>
+        <div class="cm-head">Predicted:<br>will repay</div>
+        <div class="cm-head">Predicted:<br>will default</div>
+
+        <div class="cm-head">Actually<br>repaid</div>
+        <div class="cm-cell ok"><span class="n">{{ '{:,}'.format(confusion.tn) }}</span><span class="l">True negative<br>correctly approved</span></div>
+        <div class="cm-cell err"><span class="n">{{ '{:,}'.format(confusion.fp) }}</span><span class="l">False positive<br>good customer declined</span></div>
+
+        <div class="cm-head">Actually<br>defaulted</div>
+        <div class="cm-cell err"><span class="n">{{ '{:,}'.format(confusion.fn) }}</span><span class="l">False negative<br>defaulter approved</span></div>
+        <div class="cm-cell ok"><span class="n">{{ '{:,}'.format(confusion.tp) }}</span><span class="l">True positive<br>defaulter caught</span></div>
+      </div>
+      <p class="hint" style="margin-top:var(--space-3)">
+        The model catches <strong>{{ '{:,}'.format(confusion.tp) }} of
+        {{ '{:,}'.format(confusion.defaulters) }} defaulters
+        ({{ '%.1f'|format(confusion.caught_pct) }}%)</strong>. The
+        {{ '{:,}'.format(confusion.fp) }} false positives are the deliberate price paid
+        for that recall.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Selected model</h2>
+      <p>
+        <strong>{{ model_name }}</strong> was chosen on <strong>cross-validated
+        ROC-AUC ({{ '%.4f'|format(cv_roc_auc or 0) }})</strong> &mdash; decided before the
+        test set was opened &mdash; and it kept the lead on unseen data
+        ({{ '%.4f'|format(metrics.get('ROC-AUC', 0)) }}).
+      </p>
+      <h3 style="font-size:0.9rem;margin:var(--space-3) 0 var(--space-2)">Tuned hyper-parameters</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Parameter</th><th scope="col">Value</th></tr></thead>
+          <tbody>
+            {% for key, value in best_params.items() %}
+            <tr><td>{{ key.replace('model__', '') }}</td><td>{{ value }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="hint" style="margin-top:var(--space-3)">
+        Trained {{ trained_at }} on {{ '{:,}'.format(n_train) }} rows;
+        evaluated on {{ '{:,}'.format(n_test) }} held-out rows.
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if test_table %}
+  <div class="card">
+    <h2>Final comparison &mdash; held-out test set</h2>
+    <p class="hint">Scored once, after the model and threshold were fixed.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">Model</th>{% for c in test_table.columns %}<th scope="col">{{ c }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in test_table.rows %}
+          <tr {% if model_name in row.label %}class="highlight"{% endif %}>
+            <td>{{ row.label }}</td>
+            {% for cell in row.cells %}<td>{{ cell or '&mdash;'|safe }}</td>{% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="grid grid-2">
+    <figure class="card">
+      <img src="{{ url_for('figure', filename='model_comparison.png') }}"
+           alt="Grouped bar chart comparing accuracy, precision, recall, F1 and ROC-AUC across all five models on the test set.">
+      <figcaption>Every metric, every model, on the held-out test set.</figcaption>
+    </figure>
+    <figure class="card">
+      <img src="{{ url_for('figure', filename='roc_curves.png') }}"
+           alt="ROC curves for each model with the area under the curve in the legend.">
+      <figcaption>ROC curves. Further above the diagonal is better.</figcaption>
+    </figure>
+    <figure class="card">
+      <img src="{{ url_for('figure', filename='precision_recall_curves.png') }}"
+           alt="Precision-recall curves for each model with average precision in the legend.">
+      <figcaption>Precision&ndash;recall curves &mdash; more informative than ROC under class imbalance.</figcaption>
+    </figure>
+    <figure class="card">
+      <img src="{{ url_for('figure', filename='confusion_matrices.png') }}"
+           alt="Grid of confusion matrices, one per model, annotated with raw counts.">
+      <figcaption>Confusion matrices for all models at the default 0.50 threshold.</figcaption>
+    </figure>
+  </div>
+
+  <div class="card">
+    <h2>Choosing the decision threshold</h2>
+    <p class="hint">
+      The left panel shows precision, recall and F1 across every threshold; the right
+      shows total business cost. The chosen cut-off minimises cost on out-of-fold
+      training predictions.
+    </p>
+    <figure>
+      <img src="{{ url_for('figure', filename='threshold_analysis.png') }}"
+           alt="Two line charts: precision, recall and F1 versus decision threshold, and total business cost versus decision threshold, with the chosen threshold marked.">
+    </figure>
+  </div>
+
+  {% if cv_table %}
+  <div class="card">
+    <h2>Cross-validated comparison (training set only)</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">Model</th>{% for c in cv_table.columns %}<th scope="col">{{ c }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in cv_table.rows %}
+          <tr {% if model_name in row.label %}class="highlight"{% endif %}>
+            <td>{{ row.label }}</td>{% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if tuning_table %}
+  <div class="card">
+    <h2>Hyper-parameter search</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>{% for c in tuning_table.columns %}<th scope="col">{{ c }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in tuning_table.rows %}<tr>{% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if imbalance_table %}
+  <div class="card">
+    <h2>Class-imbalance study</h2>
+    <p class="hint">
+      Re-weighting the 22% minority class roughly <strong>doubles recall</strong> at the
+      cost of precision. Since a missed defaulter is the expensive error, that trade is
+      the right one.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>{% for c in imbalance_table.columns %}<th scope="col">{{ c }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in imbalance_table.rows %}<tr>{% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+<!-- ====================================================== DATA & EDA ==== -->
+<section class="panel" id="panel-data" role="tabpanel" aria-labelledby="tab-data" tabindex="0" hidden>
+  <div class="card">
+    <h2>The dataset</h2>
+    <div class="grid grid-2">
+      <div>
+        <p>
+          <strong>UCI &ldquo;Default of Credit Card Clients&rdquo;</strong> &mdash; 30,000
+          real customers of a Taiwanese bank, April&ndash;September 2005.
+        </p>
+        <ul class="tidy">
+          <li><strong>29,965 rows</strong> after removing 35 exact duplicates.</li>
+          <li><strong>22.13% default rate</strong> &mdash; imbalanced at 3.52 : 1.</li>
+          <li><strong>No missing values</strong> in the source data.</li>
+          <li><code>ID</code> dropped &mdash; a row identifier carries no signal and would let a tree memorise individual customers.</li>
+          <li>Undocumented category codes (EDUCATION 0/5/6, MARRIAGE 0) folded into <code>others</code>.</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="font-size:0.95rem;margin-bottom:var(--space-2)">Why this dataset and not German Credit?</h3>
+        <p class="hint">
+          The better-known Statlog German Credit set has only <strong>1,000 rows and no
+          payment time series</strong>. The assignment requires feature engineering from
+          financial history, which is impossible without one. This dataset provides six
+          months of repayment status, bills and payments for 30,000 customers.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <figure class="card">
+      <img src="{{ url_for('figure', filename='eda_target_distribution.png') }}"
+           alt="Bar chart of the target distribution showing 23,335 customers repaid and 6,630 defaulted.">
+      <figcaption><strong>Is the target balanced?</strong> No &mdash; 22.13% default, so accuracy alone is misleading.</figcaption>
+    </figure>
+    <figure class="card">
+      <img src="{{ url_for('figure', filename='eda_payment_history.png') }}"
+           alt="Two bar charts: default rate by most recent repayment status, and default rate by number of late months.">
+      <figcaption><strong>Does payment history predict default?</strong> Strongly &mdash; and it motivated the engineered delinquency features.</figcaption>
+    </figure>
+    <figure class="card">
+      <img src="{{ url_for('figure', filename='eda_financial_profile.png') }}"
+           alt="Three overlaid density histograms comparing credit limit, age and utilisation between customers who repaid and defaulted.">
+      <figcaption><strong>Do limit, age and utilisation separate the classes?</strong> Limit and utilisation do; age barely.</figcaption>
+    </figure>
+    <figure class="card">
+      <img src="{{ url_for('figure', filename='eda_categorical_rates.png') }}"
+           alt="Three bar charts of default rate by education, marital status and sex.">
+      <figcaption><strong>Do demographics carry signal?</strong> A little for education, very little for sex.</figcaption>
+    </figure>
+  </div>
+
+  <figure class="card">
+    <img src="{{ url_for('figure', filename='eda_correlation_heatmap.png') }}"
+         alt="Correlation heatmap of the key numeric columns and the target.">
+    <figcaption><strong>Which features are redundant?</strong> The six bill columns are near-collinear, which is why ratio features carry more information than raw balances.</figcaption>
+  </figure>
+</section>
+
+<!-- ==================================================== WHAT DRIVES ===== -->
+<section class="panel" id="panel-features" role="tabpanel" aria-labelledby="tab-features" tabindex="0" hidden>
+  <div class="card">
+    <h2>What financial factors are most associated with credit risk?</h2>
+    <div class="note">
+      <strong>Payment behaviour dominates, not demographics.</strong> How <em>often</em>
+      someone has been late and whether they are late <em>right now</em> outweigh every
+      other feature combined. <span class="chip eng">engineered</span> marks features
+      that do not exist in the raw data.
+    </div>
+    {% if top_features %}
+    <p class="hint">
+      Permutation importance &mdash; the real drop in test ROC-AUC when a column is
+      shuffled. Model-agnostic, and not biased toward high-cardinality features.
+    </p>
+    {% for f in top_features %}
+    <div class="bar-row">
+      <span class="name">{{ f.feature }} {% if f.engineered %}<span class="chip eng">eng</span>{% endif %}</span>
+      <span class="bar-track"><span class="bar-fill" style="width: {{ '%.1f'|format(f.pct) }}%"></span></span>
+      <span class="val">{{ '%.5f'|format(f.importance) }}</span>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+
+  <div class="grid grid-2">
+    <figure class="card">
+      <img src="{{ url_for('figure', filename='feature_importance_permutation.png') }}"
+           alt="Horizontal bar chart of the top 20 features by permutation importance.">
+      <figcaption>Top 20 features by permutation importance on the test set.</figcaption>
+    </figure>
+    <div class="card">
+      <h3>The engineered features earned their place</h3>
+      <p>
+        <strong>8 of the top 12 predictors are engineered</strong>, and the single
+        strongest one &mdash; <code>n_delinquent_months</code> &mdash; does not exist in
+        the raw data at all. It is counted from the six monthly repayment-status columns.
+      </p>
+      <h3 style="font-size:0.9rem;margin:var(--space-4) 0 var(--space-2)">Fairness check</h3>
+      {% if fairness_auc %}
+      <p class="hint">
+        <code>SEX</code> is a protected attribute. Retraining without it changes test
+        ROC-AUC from <strong>{{ '%.4f'|format(metrics.get('ROC-AUC', 0)) }}</strong> to
+        <strong>{{ '%.4f'|format(fairness_auc) }}</strong> &mdash; a difference of
+        {{ '%.4f'|format(metrics.get('ROC-AUC', 0) - fairness_auc) }}, indistinguishable
+        from zero. A production deployment should simply exclude it: compliance benefit,
+        no measurable accuracy cost.
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<!-- =================================================== ERRORS & LIMITS == -->
+<section class="panel" id="panel-errors" role="tabpanel" aria-labelledby="tab-errors" tabindex="0" hidden>
+  {% if error_table %}
+  <div class="card">
+    <h2>Error analysis &mdash; where the model goes wrong</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>{% for c in error_table.columns %}<th scope="col">{{ c }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in error_table.rows %}<tr>{% for cell in row.cells %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>False negatives are &ldquo;clean-record&rdquo; defaulters</h3>
+      <p>
+        The defaulters the model misses average <strong>0.08 late months</strong> &mdash;
+        essentially spotless &mdash; and were paying on time right up to the month they
+        defaulted.
+      </p>
+      <p>
+        <strong>The model cannot see a sudden shock</strong> &mdash; job loss, illness, a
+        business failure &mdash; because nothing in six months of card history announces
+        it. That is a limit of the data, not a fixable modelling bug.
+      </p>
+      <p class="hint">
+        Their mean predicted probability is 0.294 against a
+        {{ '%.3f'|format(threshold) }} threshold: the model was <em>uncertain</em>, not
+        confidently wrong.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Limitations you should state out loud</h3>
+      <ul class="tidy">
+        <li><strong>One market, one period.</strong> Taiwan, 2005. Behaviour and economic conditions differ elsewhere and today.</li>
+        <li><strong>Six-month window only.</strong> No income, employment, or other-lender data that real credit bureaus use.</li>
+        <li><strong>Card default, not bankruptcy.</strong> The target is one missed payment.</li>
+        <li><strong>The {{ cost_fn|int }}:{{ cost_fp|int }} cost ratio is an assumption.</strong> A real lender would use its own loss-given-default figures.</li>
+        <li><strong>Precision {{ '%.4f'|format(metrics.get('Precision', 0)) }}.</strong> Suited to a review-and-escalate workflow, not fully automated rejection.</li>
+        <li><strong>Selection bias.</strong> The data only contains customers who were already approved for a card.</li>
+        <li><strong>No calibration analysis.</strong> Probabilities are used for ranking, not verified to be literally accurate.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer class="footer shell">
+  <p>
+    Credit Scoring Model &mdash; {{ model_name }} trained {{ trained_at }} ·
+    scikit-learn {{ sklearn_version }} · seed 42 ·
+    all tables read from <code>outputs/results/</code>, all predictions computed live from
+    <code>models/final_model.pkl</code>.
+  </p>
+  <p>
+    Data: Yeh &amp; Lien (2009), UCI Machine Learning Repository, CC BY 4.0.
+  </p>
+</footer>
+
+</main>
+
+<script>
+  window.THRESHOLD = {{ threshold }};
+</script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
